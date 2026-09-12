@@ -248,7 +248,10 @@ def load_model(ckpt_path: str):
         sys.path.insert(0, str(Path(__file__).parent))
         from src.models.attention_unet3d import AttentionUNet3D
         model = AttentionUNet3D(in_channels=4, out_channels=4, init_features=32)
-        ckpt  = torch.load(ckpt_path, map_location="cpu")
+        try:
+            ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        except TypeError:
+            ckpt = torch.load(ckpt_path, map_location="cpu")
         state = ckpt.get("model_state_dict", ckpt)
         model.load_state_dict(state)
         model.eval()

@@ -1,133 +1,117 @@
-# Brain Tumor Segmentation in MRI Using Attention-Based CNNs
+# 🧠 Brain Tumor Segmentation in MRI Using Attention-Based 3D CNNs
+
 ### RCOEM Nagpur — B.Tech CSE (Data Science) | Session 2026–2027 | Semester VII
 **Team:** Rishi Agrawal (17) · Rishil Pawar (18) · Sahil Deotale (24) · Shrishti Lal (39)  
-**Guide:** Dr. Uma Yadav, Assistant Professor
+**Project Guide:** Dr. Uma Yadav, Assistant Professor
 
 ---
 
-## 📁 Project Structure
+## 📁 Consolidated Project Structure
 
 ```
-Brain_Tumor_Segmentation/
-├── notebooks/
-│   ├── 01_preprocess.ipynb          ← Skull strip, normalise, save .npz files
-│   ├── 02_explore_data.ipynb        ← Visualise MRI slices + class balance
-│   ├── 03_train_baseline.ipynb      ← Train plain 3D U-Net (baseline)
-│   ├── 04_train_attention_unet.ipynb ← Train proposed Attention U-Net
-│   ├── 05_evaluate_compare.ipynb    ← All metrics + comparison table
-│   ├── 06_ablation_study.ipynb      ← Channel vs Spatial vs Hybrid attention
-│   └── 07_visualise_results.ipynb   ← Attention maps + overlays + Grad-CAM
+Brain-Tumor-Segmentation/
+├── src/                                  # Modular Python source library
+│   ├── __init__.py                       # Package exports
+│   ├── config.py                         # Centralized config: paths, hyperparams, labels
+│   ├── dataset.py                        # Subject-level zero-leakage splits, lazy loading, augmentation
+│   ├── models.py                         # Unified 3D architecture supporting all 4 ablation variants
+│   ├── losses.py                         # Soft Dice + Weighted Cross-Entropy + Focal loss
+│   ├── metrics.py                        # 15-metric suite (WT, TC, ET) + robust HD95 computation
+│   └── utils.py                          # Resumable checkpointing, fixed 100% coverage sliding-window
 │
-├── src/
-│   ├── config.py                    ← Central configuration (change dataset path here)
-│   ├── dataset.py                   ← BraTS 2023 GLI DataLoader + augmentation
-│   ├── losses.py                    ← DiceLoss + FocalLoss + CombinedLoss
-│   ├── metrics.py                   ← Dice, IoU, HD95, Sensitivity, Specificity
-│   ├── utils.py                     ← Training loops, checkpointing, sliding window
-│   └── models/
-│       ├── unet3d.py                ← Baseline 3D U-Net
-│       └── attention_unet3d.py      ← Proposed: SE + Spatial Attention Gates
+├── train.py                              # Unified CLI training script (--model_variant, --resume, etc.)
+├── evaluate.py                           # Standalone CLI evaluation & Wilcoxon statistical testing script
+├── demo_app.py                           # Interactive Streamlit web GUI
+├── dgx_estimator.py                      # Hardware & resource estimator
+├── notebooks/                            # 7-Step exploratory Jupyter notebooks
+│   ├── 01_preprocess.ipynb
+│   ├── 02_explore_data.ipynb
+│   ├── 03_train_baseline.ipynb
+│   ├── 04_train_attention_unet.ipynb
+│   ├── 05_evaluate_compare.ipynb
+│   ├── 06_ablation_study.ipynb
+│   └── 07_visualise_results.ipynb
 │
-├── checkpoints/                     ← Model checkpoints (auto-created)
-├── results/                         ← CSV results + figures (auto-created)
-├── logs/                            ← TensorBoard logs (auto-created)
-├── requirements.txt
+├── requirements.txt                      # Project dependencies
 └── README.md
 ```
 
 ---
 
-## 🚀 Quick Start (on DGX)
+## 🚀 Quick Start & Training (DGX / Shared GPU Cluster)
 
-### Step 1 — Install Dependencies
+### 1. Installation
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 2 — Extract Dataset
+### 2. Unified CLI Training (`train.py`)
+Run the unified training script directly. It supports background execution via `nohup` on shared GPU clusters with automatic crash/slot resumption.
+
 ```bash
-cd /home/yourname
-unzip ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData.zip -d BraTS2023_Training_Data
-unzip ASNR-MICCAI-BraTS2023-GLI-Challenge-ValidationData.zip -d BraTS2023_Validation_Data
+# Train Proposed Dual-Attention 3D U-Net (Hybrid SE + Spatial Attention):
+python train.py --model_variant hybrid --dataset_path "<UPDATE THIS TO YOUR ACTUAL DATASET LOCATION ON THE SERVER — e.g. /GPFS_CLUSTER/students/student02/Dataset_final>"
+
+# Train Baseline 3D U-Net (for comparison):
+python train.py --model_variant baseline --dataset_path "<UPDATE THIS TO YOUR ACTUAL DATASET LOCATION ON THE SERVER — e.g. /GPFS_CLUSTER/students/student02/Dataset_final>"
+
+# Train Ablation Variants:
+python train.py --model_variant channel   # Squeeze-and-Excitation channel attention only
+python train.py --model_variant spatial   # Spatial Attention Gates only
+
+# Resume an interrupted session cleanly from the latest checkpoint:
+python train.py --model_variant hybrid --resume
+
+# Run a 5-minute pipeline sanity check on 10 patients:
+python train.py --model_variant hybrid --quick_test
 ```
 
-### Step 3 — Change ONE Line in src/config.py
-```python
-DATASET_PATH = "/home/yourname/BraTS2023_Training_Data"  # ← your actual path
-```
-
-### Step 4 — Start JupyterLab
+### 3. Running in the Background via `nohup`
 ```bash
-jupyter lab --no-browser --port=8888 --ip=0.0.0.0
-# Open in laptop browser: http://dgx_ip_address:8888
+nohup python train.py --model_variant hybrid --dataset_path "<UPDATE THIS TO YOUR ACTUAL DATASET LOCATION ON THE SERVER — e.g. /GPFS_CLUSTER/students/student02/Dataset_final>" > train_hybrid.log 2>&1 &
 ```
 
-### Step 5 — Run Notebooks in Order
+### 4. Standalone Evaluation (`evaluate.py`)
+Evaluate trained models on the held-out test split (15 clinical metrics computed across WT, TC, ET) and run paired Wilcoxon signed-rank statistical significance tests:
+
+```bash
+# Evaluate model checkpoint on the held-out test split:
+python evaluate.py --checkpoint checkpoints/hybrid_unet3d_fold0_best.pth --model_variant hybrid
+
+# Compare against baseline with paired Wilcoxon signed-rank test:
+python evaluate.py --checkpoint checkpoints/hybrid_unet3d_fold0_best.pth --model_variant hybrid \
+                   --compare_baseline checkpoints/baseline_unet3d_fold0_best.pth
 ```
-Day 1:  01_preprocess.ipynb       (~1.5 hrs)
-Day 2:  03_train_baseline.ipynb   (~8–10 hrs, auto-checkpoints)
-Day 3:  04_train_attention_unet   (~12–14 hrs, auto-checkpoints)
-Day 4:  05_evaluate_compare       (~30 min)
-Day 5:  06_ablation_study         (~2 hrs)
-Day 6:  07_visualise_results      (~30 min) — demo ready!
-```
 
----
-
-## ⚡ Quick Test Mode
-Before committing to full training, test the pipeline on 10 patients:
-```python
-QUICK_TEST = True  # Set in the config cell of each notebook
-```
-This runs in ~5 minutes and verifies the entire pipeline works.
-
----
-
-## 📊 Expected Results
-
-| Model | Dice WT | Dice TC | Dice ET | HD95 WT↓ | HD95 ET↓ |
-|-------|---------|---------|---------|----------|----------|
-| 3D U-Net (Baseline) | ~0.84 | ~0.79 | ~0.74 | ~6.5 mm | ~9.5 mm |
-| Channel Attn only   | ~0.86 | ~0.81 | ~0.76 | ~6.1 mm | ~8.2 mm |
-| Spatial Attn only   | ~0.86 | ~0.82 | ~0.77 | ~5.8 mm | ~7.5 mm |
-| **Attn U-Net (Ours)** | **~0.87** | **~0.83** | **~0.78** | **~5.1 mm** | **~6.8 mm** |
-
----
-
-## 🧠 Architecture
-
-### Baseline (3D U-Net)
-Standard encoder-decoder with MaxPool downsampling and TransposedConv upsampling.
-
-### Proposed (Attention U-Net 3D)
-Adds two complementary attention mechanisms:
-1. **Squeeze-and-Excitation (SE) blocks** — Channel attention at every encoder/decoder level
-2. **Spatial Attention Gates** — Focus decoder on relevant tumor regions, suppress background
-
----
-
-## 📈 Metrics Computed
-
-| Metric | What it measures |
-|--------|-----------------|
-| **Dice Score** | Overlap between prediction and ground truth (↑ better) |
-| **IoU** | Intersection-over-union (↑ better) |
-| **HD95** | 95th percentile surface distance in mm (↓ better) |
-| **Sensitivity** | True positive rate — "finds all tumor" (↑ better) |
-| **Specificity** | True negative rate — "avoids false alarms" (↑ better) |
-
-All metrics computed for **3 sub-regions**: WT (Whole Tumor), TC (Tumor Core), ET (Enhancing Tumor)  
-→ **15 numbers per model** reported in the final table.
-
----
-
-## 💾 Auto-Checkpointing
-All training notebooks auto-save every epoch. If your DGX slot ends mid-training:
-```python
-RESUME = True  # (default) — automatically resumes from latest checkpoint
+### 5. Interactive Demo App (`demo_app.py`)
+Launch the Streamlit web application for interactive 3D axial slice viewing and color-coded tumor overlays:
+```bash
+streamlit run demo_app.py
 ```
 
 ---
 
-## 🛠️ Tech Stack
-Python 3 · PyTorch · MONAI · NiBabel · SimpleITK · NumPy · Scikit-learn · Matplotlib · TensorBoard
+## 🔬 Core Methodological Rigor & Data Leakage Protections
+
+1. **Patient-Level Splitting**: Scans are grouped strictly by Subject ID (`BraTS-GLI-XXXXX`). All temporal/multi-session scans of a patient remain in the same split (zero train/val/test leakage).
+2. **Per-Case Intensity Normalization**: Z-score intensity normalization is computed strictly per-volume within the non-zero brain mask; no global dataset statistics leak across splits.
+3. **Deterministic Evaluation**: Training patch extraction uses tumor-centered sampling (`foreground_prob=0.67`), whereas validation and testing use **mask-free 100% spatial coverage sliding-window inference with Gaussian blending**.
+4. **Resumable State Restoration**: Checkpoint saving preserves model weights, optimizer state, LR scheduler state, AMP scaler state, epoch number, best metric, and RNG seed states.
+
+---
+
+## 📊 Comprehensive 15-Metric Suite
+
+| Metric | Whole Tumor (WT) | Tumor Core (TC) | Enhancing Tumor (ET) |
+| :--- | :---: | :---: | :---: |
+| **Dice Similarity Score (DSC) ↑** | Evaluated | Evaluated | Evaluated |
+| **Jaccard Index (IoU) ↑** | Evaluated | Evaluated | Evaluated |
+| **95% Hausdorff Distance (HD95 mm) ↓** | Evaluated | Evaluated | Evaluated |
+| **Sensitivity (Recall) ↑** | Evaluated | Evaluated | Evaluated |
+| **Specificity ↑** | Evaluated | Evaluated | Evaluated |
+
+---
+
+## 🛠️ Tech Stack & Hardware Compatibility
+- **Software**: Python 3.9–3.11 · PyTorch 2.x · NiBabel · SciPy · Scikit-Learn · MONAI · Streamlit · TensorBoard
+- **Hardware Profile**: Optimized for 23GB VRAM MIG Slice / NVIDIA Blackwell B200 / 8-core CPU / 32GB RAM

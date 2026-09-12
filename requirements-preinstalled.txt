@@ -1,0 +1,13 @@
+# =============================================================================
+# Pre-installed System Packages on DGX Server (DO NOT INSTALL VIA PIP)
+# =============================================================================
+# These packages are already pre-installed at the system level with CUDA 12.8
+# and Blackwell (B200) kernel support.
+#
+# When creating the virtual environment on DGX, use:
+#   python3 -m venv --system-site-packages .venv
+# This inherits these packages cleanly without any internet or pip modification.
+# =============================================================================
+
+torch>=2.4.0
+torchvision>=0.19.0

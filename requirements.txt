@@ -1,16 +1,22 @@
-# Brain Tumor Segmentation — BraTS 2023 GLI
-# Python 3.9+  |  CUDA 11.8+
-
-# Deep Learning
-torch>=2.0.0
-torchvision>=0.15.0
+# =============================================================================
+# BraTS 2023 GLI Brain Tumor Segmentation — Python Dependencies
+# Target: Ubuntu 24.04 LTS / DGX Server (Air-Gapped / Zero-Internet)
+# =============================================================================
+# ⚠️ IMPORTANT: PyTorch and TorchVision are PRE-INSTALLED on the DGX server
+# with optimized CUDA 12.8 / NVIDIA Blackwell (B200) kernel drivers.
+#
+# DO NOT include or install 'torch' or 'torchvision' via pip!
+# Your venv inherits them via: python3 -m venv --system-site-packages .venv
+#
+# All packages listed below are safe to install from offline wheels or pip.
+# =============================================================================
 
 # Medical Imaging
-monai>=1.3.0
 nibabel>=5.1.0
 SimpleITK>=2.3.0
+monai>=1.3.0
 
-# Data & Numerics
+# Scientific Computing & Data Processing
 numpy>=1.24.0
 scipy>=1.10.0
 scikit-learn>=1.3.0
@@ -22,16 +28,17 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 plotly>=5.14.0
 
-# Progress & Logging
+# Progress, Logging & Hardware Utilities
 tqdm>=4.65.0
 tensorboard>=2.13.0
-wandb>=0.15.0
+psutil>=5.9.0
+pyyaml>=6.0
+einops>=0.6.0
 
-# Jupyter
+# Interactive Web Application
+streamlit>=1.25.0
+
+# Interactive Notebook Environment
 jupyterlab>=4.0.0
 ipywidgets>=8.0.0
 ipykernel>=6.23.0
-
-# Utilities
-pyyaml>=6.0
-einops>=0.6.0
