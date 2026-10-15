@@ -48,8 +48,10 @@ from src.utils import (
 def parse_args():
     parser = argparse.ArgumentParser(description="Train 3D Brain Tumor Segmentation Models on B200")
     parser.add_argument(
-        "--model", type=str, choices=["baseline", "attention"], default="attention",
-        help="Which model to train: 'baseline' (UNet3D) or 'attention' (Dual-Attention UNet3D, default)"
+        "--model", type=str,
+        choices=["baseline", "attention", "full", "channel_only", "spatial_only"],
+        default="attention",
+        help="Which model to train: 'baseline', 'attention'/'full' (Dual-Attention), 'channel_only' (SE), or 'spatial_only' (Gates)"
     )
     parser.add_argument(
         "--epochs", type=int, default=None,
@@ -113,9 +115,18 @@ def main():
     if args.model == "baseline":
         model_name = "baseline_unet3d"
         model = UNet3D(in_channels=4, out_channels=4, init_features=32).to(DEVICE)
-    else:
-        model_name = "attention_unet3d"
-        model = AttentionUNet3D(in_channels=4, out_channels=4, init_features=32).to(DEVICE)
+    elif args.model == "channel_only":
+        model_name = "attention_unet3d_channel_only"
+        model = AttentionUNet3D(in_channels=4, out_channels=4, init_features=32,
+                               use_channel_attn=True, use_spatial_attn=False).to(DEVICE)
+    elif args.model == "spatial_only":
+        model_name = "attention_unet3d_spatial_only"
+        model = AttentionUNet3D(in_channels=4, out_channels=4, init_features=32,
+                               use_channel_attn=False, use_spatial_attn=True).to(DEVICE)
+    else:  # 'attention' or 'full'
+        model_name = "attention_unet3d_full"
+        model = AttentionUNet3D(in_channels=4, out_channels=4, init_features=32,
+                               use_channel_attn=True, use_spatial_attn=True).to(DEVICE)
 
     total_params = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"  Architecture: {model_name} ({total_params:.1f}M parameters)")
