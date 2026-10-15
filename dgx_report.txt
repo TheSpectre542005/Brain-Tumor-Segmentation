@@ -1,0 +1,136 @@
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                       DGX Resource & Work-Hour Estimator                     ║
+║             Brain Tumor Segmentation · RCOEM B.Tech CSE-DS 2026-27           ║
+║  Generated: 2026-10-13  15:25:40                                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+────────────────────────────────────────────────────────────────────────────────
+  1 · HARDWARE DETECTED
+────────────────────────────────────────────────────────────────────────────────
+  CPU                          13th Gen Intel(R) Core(TM) i7-13620H
+  CPU cores (logical)          16
+  System RAM                   17 GB total  |  0.4 GB available
+
+  #   GPU Name                        VRAM Total   VRAM Free    Temp    Util
+  ────────────────────────────────────────────────────────────────────────────
+  0   NVIDIA GeForce RTX 4060 Laptop GPU      8.0 GB      7.7 GB   41 °C     0 %  ◄ PRIMARY
+
+────────────────────────────────────────────────────────────────────────────────
+  2 · DATASET
+────────────────────────────────────────────────────────────────────────────────
+  ⚠  Dataset path not found: \home\yourname\BraTS2023_Training_Data
+  Using estimate of 600 patients from config / --n-patients flag
+  Config cap       600 patients (MAX_PATIENTS in src/config.py)
+
+────────────────────────────────────────────────────────────────────────────────
+  3 · GPU VRAM ESTIMATES  [patch=96³, batch=2, fp32]
+────────────────────────────────────────────────────────────────────────────────
+  Model                             Params  Activ.   Input    OH    TOTAL  Capacity
+  ────────────────────────────────────────────────────────────────────────────────
+  3D U-Net (Baseline)                0.1 GB   1.2 GB  0.03 GB 0.1 GB    1.5 GB  ✓ OK
+  Attention U-Net 3D (Ours)          0.2 GB   1.4 GB  0.03 GB 0.2 GB    1.8 GB  ✓ OK
+  Channel Attention only             0.1 GB   1.4 GB  0.03 GB 0.2 GB    1.8 GB  ✓ OK
+  Spatial Attention only             0.2 GB   1.4 GB  0.03 GB 0.2 GB    1.8 GB  ✓ OK
+
+  GPU VRAM available: 8.0 GB on NVIDIA GeForce RTX 4060 Laptop GPU
+  Tip: reduce BATCH_SIZE → 1 or PATCH_SIZE → (80,80,80) if you hit OOM
+
+────────────────────────────────────────────────────────────────────────────────
+  4 · TRAINING TIME  [GPU tier: Unknown | 3.0 iter/s]
+────────────────────────────────────────────────────────────────────────────────
+  Pre-processing (01_preprocess.ipynb)          49m
+
+  Notebook / Model                               GPU Hours
+  ──────────────────────────────────────────────────────────
+  3D U-Net (Baseline)                                  20h   20.0h (20h 0m)
+  Attention U-Net 3D (Ours)                            25h   25.0h (25h 0m)
+  Channel Attention only                           21h 15m   21.2h (21h 15m)
+  Spatial Attention only                           22h 30m   22.5h (22h 30m)
+
+  Evaluation + metrics (05)                            30m
+  Ablation study (06)                              43h 45m
+  Visualisation + Grad-CAM (07)                        30m
+  ──────────────────────────────────────────────────────────
+  TOTAL GPU-COMPUTE HOURS                          90h 34m
+
+────────────────────────────────────────────────────────────────────────────────
+  5 · HUMAN WORK HOURS
+────────────────────────────────────────────────────────────────────────────────
+  Task                                               Hours
+  ──────────────────────────────────────────────────────────
+  Environment setup & WinSCP transfer                   2h
+  Dataset inspection & EDA notebook                 1h 30m
+  Pre-processing notebook (01)                         30m
+  Baseline training monitoring (03)                     1h
+  Attention U-Net training monitoring (04)              1h
+  Evaluation & ablation notebooks (05,06)               2h
+  Visualisation & Grad-CAM (07)                     1h 30m
+  Report writing & result tables                        6h
+  Buffer / debugging                                    2h
+  ──────────────────────────────────────────────────────────
+  TOTAL HUMAN HOURS                                17h 30m
+
+  (Human hours = setup, monitoring, analysis, report writing; not GPU idle time)
+
+────────────────────────────────────────────────────────────────────────────────
+  6 · STORAGE REQUIREMENTS
+────────────────────────────────────────────────────────────────────────────────
+  Stage                                     Size
+  ────────────────────────────────────────────────
+  Raw BraTS dataset                      17.6 GB
+  Preprocessed patches                   17.0 GB
+  Model checkpoints                       7.9 GB
+  TensorBoard / W&B logs                  0.5 GB
+  Results & figures                       0.2 GB
+  ────────────────────────────────────────────────
+  TOTAL NEEDED                           43.2 GB
+  DGX free disk space                     0.0 GB
+
+────────────────────────────────────────────────────────────────────────────────
+  7 · RECOMMENDED DGX SESSION PLAN  (6 lab slots)
+────────────────────────────────────────────────────────────────────────────────
+
+  Day 1
+    ▸ 01_preprocess.ipynb                             49m  Run once; outputs saved permanently
+    ▸ 02_explore_data.ipynb                           19m  EDA, class balance, sample slices
+
+  Day 2
+    ▸ 03_train_baseline.ipynb                         20h  Baseline — checkpoints every 5 epochs
+
+  Day 3
+    ▸ Resume baseline if needed                       (auto-resumed)  Auto-resumes from last checkpoint
+    ▸ 04_train_attention_unet.ipynb                   25h  Proposed model — resumes next session
+
+  Day 4
+    ▸ Resume Attention U-Net                          (auto-resumed)  Checkpoint auto-resume
+
+  Day 5
+    ▸ 05_evaluate_compare.ipynb                       30m  Metrics table: Dice / IoU / HD95
+    ▸ 06_ablation_study.ipynb                         43h 45m  Channel vs Spatial vs Hybrid
+
+  Day 6
+    ▸ 07_visualise_results.ipynb                      30m  Attention maps, Grad-CAM, overlays
+    ▸ Demo & cleanup                                  15m  Package results for report
+
+────────────────────────────────────────────────────────────────────────────────
+  8 · QUICK-START CHECKLIST
+────────────────────────────────────────────────────────────────────────────────
+  ☑  Transfer project folder via WinSCP
+  ☐  Transfer BraTS dataset (.nii.gz) via WinSCP
+  ☐  Update DATASET_PATH in src/config.py
+  ☐  pip install -r requirements.txt
+  ☐  Run 01_preprocess.ipynb — Quick Test first!
+  ☐  Verify checkpoint saves after epoch 1
+  ☐  Monitor GPU: watch -n5 nvidia-smi
+  ☐  Start TensorBoard: tensorboard --logdir ./logs
+
+────────────────────────────────────────────────────────────────────────────────
+  9 · WARNINGS
+────────────────────────────────────────────────────────────────────────────────
+  ⚠  Low VRAM (8 GB) — set PATCH_SIZE=(80,80,80) and BATCH_SIZE=1 in config.py
+  ⚠  System RAM (17 GB) < 64 GB — reduce NUM_WORKERS to 2 in config.py
+
+════════════════════════════════════════════════════════════════════════════════
+  Report generated by dgx_estimator.py  |  Antigravity AI · RCOEM 2026-27
+════════════════════════════════════════════════════════════════════════════════

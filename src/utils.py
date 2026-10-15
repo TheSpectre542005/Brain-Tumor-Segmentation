@@ -24,7 +24,7 @@ from typing import Optional, Dict, Tuple, List
 
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from src.config import CHECKPOINT_DIR, LOGS_DIR, PATCH_SIZE, PATCH_OVERLAP, DEVICE
+from src.config import CHECKPOINT_DIR, LOGS_DIR, PATCH_SIZE, PATCH_OVERLAP, DEVICE, USE_AMP
 
 
 # ---------------------------------------------------------------------------
@@ -106,14 +106,21 @@ def load_checkpoint(model: nn.Module, optimizer=None,
 
 def train_one_epoch(model: nn.Module, loader, optimizer,
                     criterion, device, epoch: int,
+                    scaler=None,
                     writer: Optional[SummaryWriter] = None) -> Dict[str, float]:
     """
     One full pass over the training set.
+    Uses BF16 AMP if USE_AMP=True in config (significant speedup on B200 MIG).
     Returns dict with average losses for the epoch.
     """
     model.train()
     total_loss = dice_loss_sum = focal_loss_sum = 0.0
     n_batches = 0
+
+    # Defensively handle case where writer was passed positionally as 7th argument
+    if scaler is not None and (isinstance(scaler, SummaryWriter) or hasattr(scaler, "add_scalar")):
+        writer = scaler
+        scaler = None
 
     pbar = tqdm(loader, desc=f"Epoch {epoch} [Train]", leave=False)
     for images, targets in pbar:
@@ -121,14 +128,27 @@ def train_one_epoch(model: nn.Module, loader, optimizer,
         targets = targets.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        logits = model(images)
-        loss, dl, fl = criterion(logits, targets)
-        loss.backward()
 
-        # Gradient clipping — prevents exploding gradients in 3D convnets
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
-        optimizer.step()
+        if USE_AMP and device.type == "cuda":
+            with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+                logits = model(images)
+                loss, dl, fl = criterion(logits, targets)
+            if scaler is not None and hasattr(scaler, "scale"):
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
+        else:
+            logits = model(images)
+            loss, dl, fl = criterion(logits, targets)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
 
         total_loss     += loss.item()
         dice_loss_sum  += dl.item()
@@ -170,8 +190,13 @@ def validate_one_epoch(model: nn.Module, loader, criterion,
         images  = images.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
 
-        logits = model(images)
-        loss, _, _ = criterion(logits, targets)
+        if USE_AMP and device.type == "cuda":
+            with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+                logits = model(images)
+                loss, _, _ = criterion(logits, targets)
+        else:
+            logits = model(images)
+            loss, _, _ = criterion(logits, targets)
         total_loss += loss.item()
         n_batches  += 1
 
@@ -273,7 +298,7 @@ def sliding_window_inference(model: nn.Module, volume: torch.Tensor,
 def get_scheduler(optimizer, patience: int = 10, factor: float = 0.5):
     return ReduceLROnPlateau(
         optimizer, mode="max", patience=patience,
-        factor=factor, verbose=True, min_lr=1e-6
+        factor=factor, min_lr=1e-6
     )
 
 

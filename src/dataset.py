@@ -18,7 +18,8 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from src.config import (
     MODALITIES, PATCH_SIZE, NUM_PATCHES_TRAIN, RANDOM_SEED,
-    TRAIN_RATIO, VAL_RATIO, N_FOLDS, MAX_PATIENTS, QUICK_TEST, QUICK_TEST_N
+    TRAIN_RATIO, VAL_RATIO, N_FOLDS, MAX_PATIENTS, QUICK_TEST, QUICK_TEST_N,
+    BATCH_SIZE, NUM_WORKERS
 )
 
 
@@ -208,7 +209,9 @@ def augment_patch(image: np.ndarray, seg: np.ndarray
 class BraTS2023Dataset(Dataset):
     """
     Training/validation dataset.
-    Loads full volumes and extracts random patches on-the-fly.
+    Loads volumes lazily (on-demand) to prevent OOM on 32 GB RAM.
+    With 1,251 patients each ~100 MB uncompressed, pre-loading would need
+    ~125 GB RAM — way beyond the 32 GB allocation.
     """
 
     def __init__(self, patient_folders: List[str],
@@ -219,24 +222,16 @@ class BraTS2023Dataset(Dataset):
         self.patch_size = patch_size
         self.num_patches = num_patches
         self.augment = augment
-
-        # Pre-load all volumes into memory if RAM allows (faster training)
-        # If RAM is limited, set preload=False
-        self.preloaded = []
-        print(f"Loading {len(patient_folders)} patients into memory...")
-        for i, folder in enumerate(patient_folders):
-            img, seg = load_patient(folder, has_seg=True)
-            self.preloaded.append((img, seg))
-            if (i + 1) % 50 == 0:
-                print(f"  Loaded {i+1}/{len(patient_folders)}")
+        print(f"Dataset initialised: {len(patient_folders)} patients "
+              f"({'train+aug' if augment else 'val'}) — lazy loading enabled")
 
     def __len__(self):
         return len(self.patient_folders) * self.num_patches
 
     def __getitem__(self, idx):
         patient_idx = idx // self.num_patches
-
-        image, seg = self.preloaded[patient_idx]
+        # Load patient volume on demand (not pre-loaded)
+        image, seg = load_patient(self.patient_folders[patient_idx], has_seg=True)
         img_patch, seg_patch = extract_random_patch(image, seg, self.patch_size)
 
         if self.augment:
