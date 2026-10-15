@@ -92,16 +92,14 @@ def main():
 
     # 2. Get Test Patients from zero-leakage split
     print("\n[2/5] Creating zero-leakage test set split...")
-    _, _, test_loader = get_dataloaders(
+    _, _, test_loader, test_folders = get_dataloaders(
         dataset_path=DATASET_PATH,
         batch_size=1,
-        patch_size=PATCH_SIZE,
         num_workers=2,
         n_folds=3,
         fold=0,
         max_patients=MAX_PATIENTS,
     )
-    test_folders = test_loader.dataset.patient_folders
     print(f"  -> Total test patients: {len(test_folders)}")
 
     # Select representative patients with significant tumor burden

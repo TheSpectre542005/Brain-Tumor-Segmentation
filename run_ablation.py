@@ -192,16 +192,14 @@ def main():
 
     # 3. Evaluate available ablation models
     print("\n[3/4] Evaluating available ablation models on held-out test scans...")
-    _, _, test_loader = get_dataloaders(
+    _, _, test_loader, test_folders = get_dataloaders(
         dataset_path=DATASET_PATH,
         batch_size=1,
-        patch_size=PATCH_SIZE,
         num_workers=2,
         n_folds=3,
         fold=0,
         max_patients=MAX_PATIENTS,
     )
-    test_folders = test_loader.dataset.patient_folders
     if args.quick_eval:
         test_folders = test_folders[:args.quick_eval]
     print(f"  Total test patients for evaluation: {len(test_folders)}")
