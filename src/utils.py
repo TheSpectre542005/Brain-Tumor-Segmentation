@@ -130,7 +130,7 @@ def train_one_epoch(model: nn.Module, loader, optimizer,
         optimizer.zero_grad()
 
         if USE_AMP and device.type == "cuda":
-            with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 logits = model(images)
                 loss, dl, fl = criterion(logits, targets)
             if scaler is not None and hasattr(scaler, "scale"):
@@ -191,7 +191,7 @@ def validate_one_epoch(model: nn.Module, loader, criterion,
         targets = targets.to(device, non_blocking=True)
 
         if USE_AMP and device.type == "cuda":
-            with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 logits = model(images)
                 loss, _, _ = criterion(logits, targets)
         else:

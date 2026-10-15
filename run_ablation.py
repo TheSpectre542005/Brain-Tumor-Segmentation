@@ -135,12 +135,13 @@ def train_variant(cfg, train_loader, val_loader, epochs=40):
         else:
             no_improve_count += 1
 
-        save_checkpoint(epoch, model, optimizer, val_dice, m_name, is_best=is_best)
+        save_checkpoint(model, optimizer, epoch, val_dice, model_name=m_name, is_best=is_best)
         scheduler.step(val_dice)
 
         print(f"  Epoch [{epoch+1:2d}/{epochs:2d}] ({ep_time:.1f}s) | "
-              f"Train Loss: {train_m['total']:.4f} | Val WT Dice: {val_dice:.4f} | "
+              f"Train Loss: {train_m['loss']:.4f} | Val WT Dice: {val_dice:.4f} | "
               f"Best: {best_val_dice:.4f} {'🔥 BEST' if is_best else ''}")
+        sys.stdout.flush()
 
         if no_improve_count >= EARLY_STOP_PATIENCE:
             print(f"  🛑 Early stopping triggered at epoch {epoch+1}")
