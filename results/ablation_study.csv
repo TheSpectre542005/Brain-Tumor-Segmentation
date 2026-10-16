@@ -1,0 +1,5 @@
+Model Variant,Short Name,Params (M),Channel Attn (SE),Spatial Attn (Gates),Dice WT,Dice TC,Dice ET,Sens WT,Sens TC,Sens ET,HD95 WT,HD95 ET
+Baseline (No Attention),Baseline,22.58,No,No,0.9205,0.8908,0.8536,0.9197,0.878,0.8344,4.83,2.16
+Channel Attention Only (SE),+ Channel (SE),22.64,Yes,No,0.9174,0.8923,0.8494,0.9269,0.898,0.8558,5.49,2.34
+Spatial Attention Only (Gates),+ Spatial (Gates),22.67,No,Yes,0.9231,0.8963,0.8577,0.9161,0.8812,0.8383,4.79,2.34
+Dual-Attention U-Net (Full — Proposed),Full (Ours),22.72,Yes,Yes,0.9228,0.8877,0.8517,0.9196,0.9048,0.8664,5.05,2.81
